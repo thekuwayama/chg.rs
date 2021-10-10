@@ -1,9 +1,19 @@
 use anyhow::Result;
+use rayon::prelude::*;
 use std::io::BufRead;
 use std::sync::mpsc::{channel, Receiver};
 use std::thread::{spawn, JoinHandle};
 
-pub fn concurrent_http_get<R: BufRead>(reader: &mut R) -> Result<()> {
+pub fn mw_concurrent_http_get<R: BufRead>(reader: &mut R) -> Result<()> {
+    let urls: Vec<String> = reader.lines().map(|l| l.unwrap()).collect();
+    urls.par_iter()
+        .map(|url| reqwest::blocking::get(url).unwrap().text().unwrap())
+        .for_each(|s| println!("{}", s));
+
+    Ok(())
+}
+
+pub fn pipe_concurrent_http_get<R: BufRead>(reader: &mut R) -> Result<()> {
     let (sender, receiver) = channel();
     let (r1, h1) = send_http_get(receiver);
     let (r2, h2) = map_response_body(r1);
